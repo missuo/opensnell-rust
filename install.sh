@@ -120,7 +120,9 @@ install_binaries() {
     curl -fsSL -o "${tmp}/SHA256SUMS" "${base}/SHA256SUMS" || die "download failed: ${base}/SHA256SUMS"
     want=$(awk -v f="${name}.tar.gz" '$2 == f || $2 == "*"f {print $1}' "${tmp}/SHA256SUMS")
     got=$(sha256 "${tmp}/${name}.tar.gz")
-    [ -n "$want" ] && [ "$want" = "$got" ] || die "checksum mismatch for ${name}.tar.gz"
+    if [ -z "$want" ] || [ "$want" != "$got" ]; then
+        die "checksum mismatch for ${name}.tar.gz"
+    fi
     ok "Checksum verified"
 
     tar -xzf "${tmp}/${name}.tar.gz" -C "$tmp"
