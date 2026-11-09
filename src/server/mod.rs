@@ -19,7 +19,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tracing::{debug, warn};
 
-pub use outbound::{ConnInfo, Direct, DnsError, IpPreference, Outbound, PacketSocket};
+pub use outbound::{ConnInfo, Direct, DirectUdp, DnsError, IpPreference, Outbound, PacketSocket};
 
 use crate::codec::Decoder;
 use crate::error::{Error, Result};

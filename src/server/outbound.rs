@@ -206,7 +206,7 @@ impl Direct {
 
 impl Outbound for Direct {
     type Tcp = TcpStream;
-    type Udp = UdpSocket;
+    type Udp = DirectUdp;
 
     async fn connect(&self, _info: &ConnInfo, host: &str, port: u16) -> io::Result<TcpStream> {
         let addr = self.pick(host, port).await?;
@@ -224,14 +224,18 @@ impl Outbound for Direct {
         Ok(stream)
     }
 
-    async fn bind_udp(&self, _info: &ConnInfo) -> io::Result<UdpSocket> {
+    async fn bind_udp(&self, _info: &ConnInfo) -> io::Result<DirectUdp> {
         // The official macOS server relays over an IPv4 socket, elsewhere over
         // a dual-stack one.
         if cfg!(target_os = "macos") {
-            UdpSocket::bind((std::net::Ipv4Addr::UNSPECIFIED, 0)).await
-        } else {
-            crate::sys::bind_udp_dual_stack()
+            let socket = UdpSocket::bind((std::net::Ipv4Addr::UNSPECIFIED, 0)).await?;
+            return Ok(DirectUdp {
+                socket,
+                ipv6: false,
+            });
         }
+        let (socket, ipv6) = crate::sys::bind_udp_dual_stack()?;
+        Ok(DirectUdp { socket, ipv6 })
     }
 
     async fn resolve(&self, _info: &ConnInfo, host: &str, port: u16) -> io::Result<SocketAddr> {
@@ -240,6 +244,40 @@ impl Outbound for Direct {
 
     fn udp_sources_ipv6(&self) -> bool {
         !cfg!(target_os = "macos")
+    }
+}
+
+/// The socket [`Direct`] relays a UDP session through.
+#[derive(Debug)]
+pub struct DirectUdp {
+    socket: UdpSocket,
+    /// Dual-stack IPv6 socket: IPv4 targets are sent IPv4-mapped, which
+    /// Windows requires (Linux also accepts plain IPv4 addresses).
+    ipv6: bool,
+}
+
+impl PacketSocket for DirectUdp {
+    fn poll_recv_from(
+        &self,
+        cx: &mut Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<io::Result<SocketAddr>> {
+        self.socket.poll_recv_from(cx, buf)
+    }
+
+    fn poll_send_to(
+        &self,
+        cx: &mut Context<'_>,
+        buf: &[u8],
+        target: SocketAddr,
+    ) -> Poll<io::Result<usize>> {
+        let target = match target {
+            SocketAddr::V4(v4) if self.ipv6 => {
+                SocketAddr::new(IpAddr::V6(v4.ip().to_ipv6_mapped()), v4.port())
+            }
+            other => other,
+        };
+        self.socket.poll_send_to(cx, buf, target)
     }
 }
 

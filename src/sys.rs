@@ -42,8 +42,9 @@ pub(crate) fn set_keepalive<'a>(
 
 /// A UDP socket on an ephemeral port that reaches both IPv4 and IPv6
 /// targets: an IPv6 socket with `IPV6_V6ONLY` off (Windows turns it on by
-/// default), or an IPv4 socket where IPv6 is unavailable.
-pub(crate) fn bind_udp_dual_stack() -> io::Result<tokio::net::UdpSocket> {
+/// default), or an IPv4 socket where IPv6 is unavailable. Returns whether
+/// the socket is IPv6.
+pub(crate) fn bind_udp_dual_stack() -> io::Result<(tokio::net::UdpSocket, bool)> {
     use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
     use socket2::{Domain, Protocol, Socket, Type};
@@ -54,14 +55,14 @@ pub(crate) fn bind_udp_dual_stack() -> io::Result<tokio::net::UdpSocket> {
         s.bind(&SocketAddr::from((Ipv6Addr::UNSPECIFIED, 0)).into())?;
         Ok(s)
     };
-    let sock = match dual() {
-        Ok(s) => s,
+    let (sock, ipv6) = match dual() {
+        Ok(s) => (s, true),
         Err(_) => {
             let s = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
             s.bind(&SocketAddr::from((Ipv4Addr::UNSPECIFIED, 0)).into())?;
-            s
+            (s, false)
         }
     };
     sock.set_nonblocking(true)?;
-    tokio::net::UdpSocket::from_std(sock.into())
+    Ok((tokio::net::UdpSocket::from_std(sock.into())?, ipv6))
 }
