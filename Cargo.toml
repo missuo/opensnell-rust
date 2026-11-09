@@ -8,6 +8,7 @@ description = "Snell v5 / v6 proxy protocol (client and server) for tokio"
 repository = "https://github.com/missuo/opensnell-rust"
 keywords = ["snell", "proxy", "tokio", "surge"]
 categories = ["network-programming", "asynchronous"]
+exclude = [".github"]
 
 [features]
 default = ["aws-lc"]
