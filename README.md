@@ -15,7 +15,7 @@ Snell proxy protocol for Rust and tokio: client and server, v4/v5 and v6.
 opensnell = { git = "https://github.com/missuo/opensnell-rust" }
 ```
 
-AES-GCM comes from `aws-lc-rs` by default; use `default-features = false, features = ["ring"]` for `ring`.
+AES-GCM comes from `aws-lc-rs` by default; use `default-features = false, features = ["ring"]` for `ring`. On x86_64 Windows, aws-lc needs NASM, or `AWS_LC_SYS_PREBUILT_NASM=1` to use its prebuilt objects.
 
 ## Client
 
@@ -74,12 +74,16 @@ server.serve(tokio::net::TcpListener::bind("0.0.0.0:6160").await?).await?;
 
 `ServerConfig` covers obfs, UDP, `dns-ip-preference` and timeouts, with the official server's defaults. To route upstream traffic elsewhere, implement `server::Outbound` and use `Server::with_outbound`. To serve many v6 PSKs on one port, use `ServerConfig::identify` with a `server::Identifier`. It picks the key from the first 32 bytes of each connection before doing any key derivation. `Server::serve_connection` serves a connection you accepted yourself.
 
-## Examples
+## Binaries
+
+[Releases](https://github.com/missuo/opensnell-rust/releases) ship two command-line tools for Linux, macOS and Windows:
 
 ```sh
-cargo run --release --example server -- 0.0.0.0:6160 <psk> v6
-cargo run --release --example client -- 127.0.0.1:6160 <psk> example.com v6
+opensnell-server --listen 0.0.0.0:6160 --psk <psk> --version v6
+opensnell-client --server 203.0.113.1:6160 --psk <psk> --version v6 --listen 127.0.0.1:1080
 ```
+
+`opensnell-client` is a local SOCKS5 proxy (CONNECT and UDP ASSOCIATE). Both take `--help`. They are the crate's examples: `cargo run --release --example server -- --help`.
 
 ## Tests
 
