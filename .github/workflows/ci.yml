@@ -15,6 +15,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # x86_64 Windows: use aws-lc's prebuilt NASM objects instead of a NASM install.
+  AWS_LC_SYS_PREBUILT_NASM: 1
 
 jobs:
   lint:
@@ -36,7 +38,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-latest]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-latest, windows-latest]
         backend: [aws-lc, ring]
     runs-on: ${{ matrix.os }}
     steps:

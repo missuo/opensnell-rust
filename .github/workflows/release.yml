@@ -12,6 +12,8 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # x86_64 Windows: use aws-lc's prebuilt NASM objects instead of a NASM install.
+  AWS_LC_SYS_PREBUILT_NASM: 1
 
 jobs:
   verify:
@@ -47,6 +49,10 @@ jobs:
             os: macos-latest
           - target: aarch64-apple-darwin
             os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
     runs-on: ${{ matrix.os }}
     env:
       # Static Linux binaries; the C parts of aws-lc build with musl-gcc.
@@ -64,18 +70,31 @@ jobs:
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
       - name: Build
-        run: cargo build --locked --release --target ${{ matrix.target }} --example server
+        run: cargo build --locked --release --target ${{ matrix.target }} --example server --example client
       - name: Package
+        shell: bash
         run: |
-          name="opensnell-server-v${{ needs.verify.outputs.version }}-${{ matrix.target }}"
+          target="${{ matrix.target }}"
+          name="opensnell-v${{ needs.verify.outputs.version }}-$target"
+          ext=""
+          [[ "$target" == *windows* ]] && ext=".exe"
           mkdir -p "dist/$name"
-          cp "target/${{ matrix.target }}/release/examples/server" "dist/$name/opensnell-server"
+          for bin in server client; do
+            cp "target/$target/release/examples/$bin$ext" "dist/$name/opensnell-$bin$ext"
+          done
           cp README.md LICENSE "dist/$name/"
-          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          cd dist
+          if [[ "$target" == *windows* ]]; then
+            7z a -tzip "$name.zip" "$name" > /dev/null
+          else
+            tar -czf "$name.tar.gz" "$name"
+          fi
       - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.target }}
-          path: dist/*.tar.gz
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
           if-no-files-found: error
 
   release:
@@ -90,7 +109,7 @@ jobs:
           path: dist
           merge-multiple: true
       - name: Checksums
-        run: cd dist && sha256sum -- *.tar.gz > SHA256SUMS
+        run: cd dist && sha256sum -- *.tar.gz *.zip > SHA256SUMS
       - uses: softprops/action-gh-release@v3
         with:
           files: dist/*
