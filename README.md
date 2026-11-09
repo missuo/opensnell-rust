@@ -8,7 +8,23 @@ Snell proxy protocol for Rust and tokio: client and server, v4/v5 and v6.
 - Works over any `AsyncRead + AsyncWrite` transport, so it slots into an existing proxy
 - Server: pluggable outbound, many PSKs on one v6 listener
 
-## Install
+## Install the server
+
+On a Linux server with systemd, one command installs the latest release as a service on a random port with a random PSK (v6), and prints the Surge configuration:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/missuo/opensnell-rust/main/install.sh | sudo bash
+```
+
+Pick the version, port or PSK:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/missuo/opensnell-rust/main/install.sh | sudo bash -s -- --version v5 --port 6160 --psk <psk>
+```
+
+The same way, `-s -- update`, `-s -- info` and `-s -- uninstall` update, show or remove it. On macOS the script installs just the binaries.
+
+## Use as a library
 
 ```toml
 [dependencies]

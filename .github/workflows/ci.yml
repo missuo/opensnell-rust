@@ -56,3 +56,36 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.88
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --locked --lib
+
+  install-script:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: shellcheck install.sh
+      - name: Install the latest release as a service
+        run: sudo ./install.sh install --port 16160 --psk ci-psk-0123456789abcdef
+      - name: Service is up
+        run: |
+          systemctl is-active opensnell
+          sudo ./install.sh info
+          sudo ./install.sh status --no-pager
+      - name: Traffic through opensnell-client and the service
+        run: |
+          opensnell-client --server 127.0.0.1:16160 --psk ci-psk-0123456789abcdef --version v6 --listen 127.0.0.1:1080 &
+          sleep 1
+          curl -fsS --max-time 20 --socks5-hostname 127.0.0.1:1080 -o /dev/null -w '%{http_code}\n' https://github.com
+      - name: Reinstall as v5
+        run: |
+          sudo ./install.sh install --version v5 --port 16161
+          grep -q '^OPENSNELL_VERSION=v5$' /etc/opensnell/server.env
+          systemctl is-active opensnell
+      - name: Uninstall
+        run: |
+          sudo ./install.sh uninstall --purge
+          if systemctl is-active --quiet opensnell; then exit 1; fi
+          test ! -e /usr/local/bin/opensnell-server
+          test ! -e /etc/opensnell
