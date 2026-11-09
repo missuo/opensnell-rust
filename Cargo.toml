@@ -1,0 +1,49 @@
+[package]
+name = "opensnell"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "GPL-3.0-or-later"
+description = "Snell v5 / v6 proxy protocol (client and server) for tokio"
+repository = "https://github.com/missuo/opensnell-rust"
+keywords = ["snell", "proxy", "tokio", "surge"]
+categories = ["network-programming", "asynchronous"]
+
+[features]
+default = ["aws-lc"]
+# AES-128-GCM backend. aws-lc is the fastest on current x86_64 / aarch64;
+# ring builds without a C toolchain beyond cc. If both are enabled, aws-lc wins.
+aws-lc = ["dep:aws-lc-rs"]
+ring = ["dep:ring"]
+
+[dependencies]
+argon2 = { version = "0.6", default-features = false }
+aws-lc-rs = { version = "1.19", optional = true, default-features = false, features = ["aws-lc-sys"] }
+blake2 = { version = "0.11", default-features = false }
+bytes = "1.12"
+getrandom = "0.4"
+rand = "0.10"
+ring = { version = "0.17", optional = true }
+socket2 = { version = "0.6", features = ["all"] }
+thiserror = "2"
+tokio = { version = "1.54", features = ["io-util", "net", "rt", "time", "macros", "sync"] }
+tokio-util = { version = "0.7", default-features = false, features = ["io"] }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["async_tokio"] }
+hex = "0.4"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tokio = { version = "1.54", features = ["full"] }
+
+[[bench]]
+name = "throughput"
+harness = false
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+
+[profile.bench]
+codegen-units = 1
+lto = "fat"
