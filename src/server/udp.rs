@@ -117,12 +117,19 @@ where
     let mut buf = vec![0u8; MAX_PAYLOAD - MAX_RESPONSE_HEAD];
     let mut head = Vec::with_capacity(MAX_RESPONSE_HEAD);
     loop {
-        let (src, n) = poll_fn(|cx| {
+        let received = poll_fn(|cx| {
             let mut rb = ReadBuf::new(&mut buf);
             let src = ready!(socket.poll_recv_from(cx, &mut rb))?;
             Poll::Ready(Ok::<_, io::Error>((src, rb.filled().len())))
         })
-        .await?;
+        .await;
+        let (src, n) = match received {
+            Ok(r) => r,
+            // Windows reports an ICMP port unreachable for an earlier send as
+            // a reset on the next receive; the socket itself is fine.
+            Err(e) if e.kind() == io::ErrorKind::ConnectionReset => continue,
+            Err(e) => return Err(e),
+        };
         protocol::udp_response_head(src, as_ipv6, &mut head);
         poll_fn(|cx| wr.w.poll_write_packet(&mut wr.io, cx, &head, &buf[..n])).await?;
         poll_fn(|cx| wr.w.poll_flush(&mut wr.io, cx)).await?;

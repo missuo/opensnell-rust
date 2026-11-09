@@ -230,7 +230,7 @@ impl Outbound for Direct {
         if cfg!(target_os = "macos") {
             UdpSocket::bind((std::net::Ipv4Addr::UNSPECIFIED, 0)).await
         } else {
-            UdpSocket::bind((std::net::Ipv6Addr::UNSPECIFIED, 0)).await
+            crate::sys::bind_udp_dual_stack()
         }
     }
 
