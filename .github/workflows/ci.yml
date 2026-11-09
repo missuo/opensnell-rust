@@ -81,7 +81,7 @@ jobs:
       - name: Reinstall as v5
         run: |
           sudo ./install.sh install --version v5 --port 16161
-          grep -q '^OPENSNELL_VERSION=v5$' /etc/opensnell/server.env
+          sudo grep -q '^OPENSNELL_VERSION=v5$' /etc/opensnell/server.env
           systemctl is-active opensnell
       - name: Uninstall
         run: |
