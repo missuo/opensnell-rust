@@ -15,7 +15,7 @@ env:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -81,7 +81,7 @@ jobs:
   release:
     needs: [verify, build]
     if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -100,7 +100,7 @@ jobs:
 
   publish:
     needs: release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
     steps:

@@ -18,7 +18,7 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-latest]
         backend: [aws-lc, ring]
     runs-on: ${{ matrix.os }}
     steps:
@@ -48,7 +48,7 @@ jobs:
       - run: cargo test --locked --no-default-features --features ${{ matrix.backend }}
 
   msrv:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@1.88
