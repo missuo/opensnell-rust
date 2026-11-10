@@ -302,6 +302,62 @@ async fn udp_every_wire() {
 }
 
 #[tokio::test]
+async fn udp_handshake_keeps_the_first_datagram() {
+    let echo = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let echo_addr = echo.local_addr().unwrap();
+    tokio::spawn(async move {
+        let mut buf = [0u8; 2048];
+        loop {
+            let (n, from) = echo.recv_from(&mut buf).await.unwrap();
+            echo.send_to(&buf[..n], from).await.unwrap();
+        }
+    });
+    for (key, obfs) in keys() {
+        let server = start_server(server_cfg(&key, &obfs)).await;
+        let tcp = TcpStream::connect(server).await.unwrap();
+        let mut udp = client(&key, obfs.clone(), false)
+            .udp_handshake(tcp)
+            .await
+            .unwrap();
+        udp.send_to(b"first", &Address::Socket(echo_addr))
+            .await
+            .unwrap();
+        let mut buf = [0u8; 64];
+        let (n, from) = tokio::time::timeout(Duration::from_secs(5), udp.recv_from(&mut buf))
+            .await
+            .unwrap_or_else(|_| panic!("first datagram lost: {key:?} {obfs:?}"))
+            .unwrap();
+        assert_eq!(&buf[..n], b"first");
+        assert_eq!(from, echo_addr);
+    }
+}
+
+#[tokio::test]
+async fn udp_handshake_reports_a_refused_session() {
+    let key = Key::v5("e2e-v5").unwrap();
+    let mut cfg = server_cfg(&key, &Obfs::None);
+    cfg.udp = false;
+    let server = start_server(cfg).await;
+    let tcp = TcpStream::connect(server).await.unwrap();
+    let err = client(&key, Obfs::None, false)
+        .udp_handshake(tcp)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(Error::from_io(&err), Some(Error::Server { .. })),
+        "{err:?}"
+    );
+}
+
+#[test]
+fn udp_max_payload_accounts_for_the_address() {
+    let ip = opensnell::udp_max_payload(&Address::Socket("1.2.3.4:53".parse().unwrap())).unwrap();
+    let name = opensnell::udp_max_payload(&Address::Domain("example.com".into(), 53)).unwrap();
+    assert!(name < ip);
+    assert!(opensnell::udp_max_payload(&Address::Domain(String::new(), 53)).is_err());
+}
+
+#[tokio::test]
 async fn many_keys_on_one_listener() {
     let echo = start_echo().await;
     let table: Vec<(Key, Arc<str>)> = (0..20)

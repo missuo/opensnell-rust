@@ -156,6 +156,39 @@ impl Client {
             send: UdpSendState::new(stream.w),
         })
     }
+
+    /// Starts a UDP-over-TCP session over `io` and waits for the server to
+    /// accept it before returning, so no datagram rides with the request.
+    ///
+    /// v4/v5 servers drop datagrams that arrive together with the session
+    /// request (see [`Client::udp`]); after this handshake the first datagram
+    /// arrives. A refused session (UDP disabled on the server) fails here
+    /// with [`Error::Server`] instead of on the first receive.
+    ///
+    /// Surge sends the request together with the first datagram, so on v6
+    /// [`Client::udp`] is the wire Surge puts out.
+    pub async fn udp_handshake<S>(&self, io: S) -> io::Result<UdpSession<S>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        let mut session = self.udp(io)?;
+        session.send.w.queue(&protocol::UDP_REQUEST)?;
+        session.send.requested = true;
+        poll_fn(|cx| session.send.w.poll_flush(&mut session.io, cx)).await?;
+        poll_fn(|cx| session.recv.r.poll_reply(&mut session.io, cx)).await?;
+        Ok(session)
+    }
+}
+
+/// The largest UDP payload one datagram to `target` can carry.
+///
+/// [`UdpSession::send_to`] rejects larger payloads with [`Error::Config`];
+/// callers that must tell an oversized datagram from a broken session check
+/// the size first.
+pub fn udp_max_payload(target: &Address) -> Result<usize> {
+    let mut head = Vec::with_capacity(1 + 2 + 255 + 2);
+    protocol::udp_request_head(target, &mut head)?;
+    Ok(protocol::udp_max_payload(&head))
 }
 
 /// A UDP-over-TCP session: each datagram travels as one Snell frame.

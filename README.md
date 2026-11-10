@@ -65,6 +65,8 @@ let mut buf = [0u8; 2048];
 let (n, from) = udp.recv_from(&mut buf).await?;
 ```
 
+v4/v5 servers drop datagrams that arrive together with the session request, which `udp` sends with the first datagram (as Surge does). `client.udp_handshake(tcp).await?` sends the request alone and waits for the server to accept it, so the first datagram arrives and a refused session fails there.
+
 Reuse (`ClientConfig { reuse: true, .. }` on v4/v5; v6 always asks for it):
 
 ```rust

@@ -53,7 +53,9 @@ mod stream;
 mod sys;
 mod v6;
 
-pub use client::{Client, ClientConfig, ClientStream, UdpReceiver, UdpSender, UdpSession};
+pub use client::{
+    Client, ClientConfig, ClientStream, UdpReceiver, UdpSender, UdpSession, udp_max_payload,
+};
 pub use error::Error;
 pub use key::{Key, Mode, V6_PREFIX_LEN, Version};
 pub use obfs::{Obfs, ObfsMode, ObfsStream};

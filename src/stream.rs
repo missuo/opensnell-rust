@@ -160,7 +160,7 @@ impl ReadState {
     }
 
     /// Consumes the server's response status, once per session.
-    fn poll_reply<R: AsyncRead + Unpin>(
+    pub(crate) fn poll_reply<R: AsyncRead + Unpin>(
         &mut self,
         io: &mut R,
         cx: &mut Context<'_>,
